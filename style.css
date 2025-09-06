@@ -63,6 +63,7 @@ button:hover { background: #0ea5e9; }
 /* Simple card face bits */
 .corner {
   font-weight: 700;
+  line-height: 15px;
 }
 
 .corner.bottom { transform: rotate(180deg); align-self: flex-end; }
@@ -73,6 +74,13 @@ button:hover { background: #0ea5e9; }
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 22px;
+}
+
+.total {
+  margin-left: auto;      
+  align-self: flex-start; 
+  font-size: 30px;
+  order: 999;             
 }
 
 .red { color: #b91c1c; }
