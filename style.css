@@ -59,6 +59,7 @@ body {
 .controls { display: flex; gap: 8px; }
 button { cursor: pointer; padding: 8px 12px; border-radius: 6px; border: 1px solid #0ea5e9; background: #0284c7; color: #fff; }
 button:hover { background: #0ea5e9; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Simple card face bits */
 .corner {
@@ -85,3 +86,8 @@ button:hover { background: #0ea5e9; }
 
 .red { color: #b91c1c; }
 .black { color: #111827; }
+
+.status {
+  min-height: 24px;
+  font-weight: 600;
+}
