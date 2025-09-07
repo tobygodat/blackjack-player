@@ -12,6 +12,11 @@ let newBtn = null;
 let dealer = null;   
 let player = null;  
 let statusEl = null; 
+let amtMoney = 500;
+let betSize = 0;
+let bettingContainer = null;
+let betBtnOne = null, betBtnTwo = null, betBtnThree = null, betBtnFour = null, betClearBtn = null;
+let winner = null;
 
 let inRound = false; 
 let dealerHoleEl = null; 
@@ -100,6 +105,11 @@ function dealing() {
     inRound = true;
     updateButtons();
 
+    if (amtMoney === 0) {
+        betSize = 0;
+        renderBet();
+    }
+
     // check for initial bjack
     const pTotal = handTotal(player_cards);
     const dTotal = handTotal(dealer_cards);
@@ -133,7 +143,7 @@ function handTotal(cards) {
 }
 
 function getTotalEl(container) {
-    // Ensure a .total element exists within the given hand container
+
     let el = container.querySelector('.total');
     if (!el) {
         el = document.createElement('div');
@@ -150,11 +160,11 @@ function updateTotal(container, cards, revealed) {
 
 function revealDealerHole() {
     if (dealerHoleEl && dealerHoleEl.dataset.hidden === 'true') {
-        // reveal cards
+
         for (const el of dealerHoleEl.children) el.style.visibility = '';
         delete dealerHoleEl.dataset.hidden;
     }
-    // show total
+
     updateTotal(dealer, dealer_cards, true);
 }
 
@@ -163,23 +173,24 @@ function playerHit() {
     const card = deck.pop();
     player_cards.push(card);
     player.appendChild(displayCard(card));
-    // update total
+
     updateTotal(player, player_cards, true);
     const total = handTotal(player_cards);
     if (total > 21) {
         revealDealerHole();
+        winner = "dealer"; 
         endRound('Player busts. Dealer wins.');
     }
 }
 
 function dealerPlay() {
     revealDealerHole();
-    // hit until 17
+
     while (handTotal(dealer_cards) < 17) {
         const c = deck.pop();
         dealer_cards.push(c);
         dealer.appendChild(displayCard(c));
-        // update totals
+
         updateTotal(dealer, dealer_cards, true);
     }
 }
@@ -187,11 +198,22 @@ function dealerPlay() {
 function compareTotals() {
     const p = handTotal(player_cards);
     const d = handTotal(dealer_cards);
-    if (p > 21) return 'Player busts. Dealer wins.';
-    if (d > 21) return 'Dealer busts. Player wins!';
-    if (p > d) return 'Player wins!';
-    if (p < d) return 'Dealer wins.';
-    return 'Push (tie).';
+    if (p > 21) {
+        winner = "dealer";
+        return 'Player busts. Dealer wins.'; 
+    } else if (d > 21)  {
+        winner = "player";
+        return 'Dealer busts. Player wins!';
+    } else if (p > d) {
+        winner = "player";
+        return "Player wins!";
+    } else if (p < d) {
+        winner = "dealer";
+        return "Dealer wins!";
+    } else {
+        winner = "push";
+        return 'Push (tie).';
+    }
 }
 
 function endRound(message) {
@@ -200,17 +222,55 @@ function endRound(message) {
     
     updateTotal(player, player_cards, true);
     updateTotal(dealer, dealer_cards, true);
+
+    if (winner === "player") {
+        amtMoney += betSize;
+    } else if (winner === "dealer") {
+        amtMoney -= betSize;
+    } else {
+        amtMoney = amtMoney;
+    }
+
+    renderBet();
     updateButtons();
 }
 
 function updateButtons() {  
-
     dealBtn.disabled = inRound;
     hitBtn.disabled = !inRound;
     standBtn.disabled = !inRound;
     newBtn.disabled = inRound;
+
+    const disableBetting = inRound;
+    for (const btn of [betBtnOne, betBtnTwo, betBtnThree, betBtnFour, betClearBtn]) {
+        if (btn) btn.disabled = disableBetting;
+    }
 }
 
+function getBetEl(container) {
+    if (!container) return null;
+    let el = container.querySelector('.bet-amount');
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'bet-amount';
+        container.appendChild(el);
+    }
+    return el;
+}
+
+function renderBet() {
+    const el = getBetEl(bettingContainer);
+    if (el) el.innerHTML = `Bet: $${betSize} <br> Total: $${amtMoney}`;
+}
+
+function addBet(size) {
+    if ((betSize + size) <= amtMoney) {
+        betSize += size;
+    } else {
+        betSize = amtMoney;
+    }
+    renderBet();
+}
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -221,6 +281,13 @@ document.addEventListener("DOMContentLoaded", () => {
     dealer = document.getElementById("dealer-cards");
     player = document.getElementById("player-cards");
     statusEl = document.getElementById("status");
+    bettingContainer = document.querySelector('.betting');
+    betBtnOne = document.getElementById("bet-btn-1");
+    betBtnTwo = document.getElementById("bet-btn-2");
+    betBtnThree = document.getElementById("bet-btn-3");
+    betBtnFour = document.getElementById("bet-btn-4");
+    betClearBtn = document.getElementById("bet-clear");
+
 
     if (!dealBtn || !hitBtn || !standBtn || !newBtn || !dealer || !player || !statusEl) {
         console.error("Missing required elements");
@@ -230,9 +297,18 @@ document.addEventListener("DOMContentLoaded", () => {
     makeDeck();
     shuffleDeck(deck);
     updateButtons();
+    renderBet(); // initialize bet display
 
     dealBtn.addEventListener("click", () => dealing());
     hitBtn.addEventListener("click", () => playerHit());
     standBtn.addEventListener("click", () => { dealerPlay(); endRound(compareTotals()); });
+    // IMPORTANT: pass a callback, don't call addBet immediately
+    if (betBtnOne) betBtnOne.addEventListener("click", () => addBet(10));
+    if (betBtnTwo) betBtnTwo.addEventListener("click", () => addBet(25));
+    if (betBtnThree) betBtnThree.addEventListener("click", () => addBet(50));
+    if (betBtnFour) betBtnFour.addEventListener("click", () => addBet(100));
+    if (betClearBtn) betClearBtn.addEventListener("click", () => { betSize = 0; renderBet(); });
+
+
     newBtn.addEventListener("click", () => { inRound = false; statusEl.textContent = ''; dealing(); });
 });

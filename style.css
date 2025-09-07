@@ -91,3 +91,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   min-height: 24px;
   font-weight: 600;
 }
+
+.betting {
+  display: flex;
+  gap: 10px;
+  flex-direction: row;
+}
+
+.bet-amount {
+  margin-left: auto;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+
