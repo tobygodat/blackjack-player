@@ -1,22 +1,23 @@
-# Importing JDK and copying required files
-FROM openjdk:19-jdk AS build
+## Multi-stage build for Spring Boot app located under blackjackproject/
+
+# Stage 1: Build with Maven (Java 17)
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
-COPY pom.xml .
-COPY src src
 
-# Copy Maven wrapper
-COPY mvnw .
-COPY .mvn .mvn
+# Copy only pom first to leverage layer caching for dependencies
+COPY blackjackproject/pom.xml ./
+RUN mvn -q -DskipTests dependency:go-offline
 
-# Set execution permission for the Maven wrapper
-RUN chmod +x ./mvnw
-RUN ./mvnw clean package -DskipTests
+# Copy sources and build
+COPY blackjackproject/src ./src
+RUN mvn -q -DskipTests package
 
-# Stage 2: Create the final Docker image using OpenJDK 19
-FROM openjdk:19-jdk
-VOLUME /tmp
+# Stage 2: Runtime with a slim JRE 17
+FROM eclipse-temurin:17-jre
+WORKDIR /app
 
-# Copy the JAR from the build stage
+# Copy the fat jar built by Spring Boot
 COPY --from=build /app/target/*.jar app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+
 EXPOSE 8080
+ENTRYPOINT ["java","-jar","app.jar"]
