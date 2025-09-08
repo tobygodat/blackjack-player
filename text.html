@@ -9,6 +9,18 @@
 <body>
         <div class="game-container">
             <h1>Blackjack Simulation</h1>
+            <div class="session-controls" aria-label="Session settings">
+                <div class="bankroll-controls">
+                    <label for="bankroll-input">Starting Bankroll:</label>
+                    <input id="bankroll-input" type="number" min="0" step="1" value="500" />
+                    <button id="set-bankroll-btn" type="button">Set</button>
+                </div>
+                <div class="count-controls">
+                    <span class="count-label">Running Count:</span>
+                    <span id="count-value" aria-live="polite">—</span>
+                    <button id="toggle-count-btn" type="button">Show Count</button>
+                </div>
+            </div>
 
             <section id="dealer_cont" class="player-container">
                 <h2 class="label">Dealer</h2>

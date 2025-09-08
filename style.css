@@ -45,7 +45,7 @@ body {
   background-color: #fff;
   color: #111;
   border-radius: 8px;
-  display: flex;         /* inner layout */
+  display: flex;        
   flex-direction: column;
   justify-content: space-between;
   padding: 8px;
@@ -61,7 +61,6 @@ button { cursor: pointer; padding: 8px 12px; border-radius: 6px; border: 1px sol
 button:hover { background: #0ea5e9; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Simple card face bits */
 .corner {
   font-weight: 700;
   line-height: 15px;
@@ -102,6 +101,29 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-left: auto;
   font-size: 22px;
   font-weight: 600;
+}
+
+.session-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.04);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.bankroll-controls, .count-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#count-value {
+  min-width: 28px;
+  display: inline-block;
+  text-align: center;
+  font-weight: 700;
 }
 
 

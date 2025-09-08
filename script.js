@@ -20,6 +20,34 @@ let winner = null;
 
 let inRound = false; 
 let dealerHoleEl = null; 
+// Running count (Hi-Lo) & session controls
+let runningCount = 0;
+let countVisible = false;
+let countValueEl = null;
+let toggleCountBtn = null;
+let bankrollInput = null;
+let setBankrollBtn = null;
+let dealerHoleCard = null;
+let dealerHoleCounted = false;
+
+function hiLoValue(card) {
+    if (!card) return 0;
+    const v = card.value;
+    if (['2','3','4','5','6'].includes(v)) return 1;
+    if (['7','8','9'].includes(v)) return 0;
+    return -1;
+}
+
+function applyCountForCard(card) {
+    runningCount += hiLoValue(card);
+    updateCountUI();
+}
+
+function updateCountUI() {
+    if (!countValueEl) return;
+    countValueEl.textContent = countVisible ? String(runningCount) : '—';
+    if (toggleCountBtn) toggleCountBtn.textContent = countVisible ? 'Hide Count' : 'Show Count';
+}
 
 function makeDeck() {
     deck = [];
@@ -40,7 +68,6 @@ function shuffleDeck(deck) {
 }
 
 function displayCard(card, hidden) {
-    // build a simple card element with top/bottom corners and a center suit.
     const cardElement = document.createElement("div");
     cardElement.classList.add("card");
 
@@ -72,34 +99,39 @@ function displayCard(card, hidden) {
 }
 
 function dealing() {
-    // start new round -- clear UI & deal new 
     player_cards = [];
     dealer_cards = [];
     dealer.innerHTML = '';
     player.innerHTML = '';
     statusEl.textContent = '';
+    dealerHoleEl = null;
+    dealerHoleCard = null;
+    dealerHoleCounted = false;
 
-    // reshuffle if low on cards
     if (deck.length < 15) { 
         makeDeck(); 
         shuffleDeck(deck);
+        runningCount = 0;
+        updateCountUI();
     }
 
-    // Player gets two
     const p1 = deck.pop(); const p2 = deck.pop();
     player_cards.push(p1, p2);
     player.appendChild(displayCard(p1));
     player.appendChild(displayCard(p2));
-    // update player total
+
+    applyCountForCard(p1); applyCountForCard(p2);
+
     updateTotal(player, player_cards, true);
 
-    // dealer dealt one normal & hidden
     const d1 = deck.pop(); const d2 = deck.pop();
     dealer_cards.push(d1, d2);
     dealer.appendChild(displayCard(d1));
     dealerHoleEl = displayCard(d2, true);
     dealer.appendChild(dealerHoleEl);
-    // hide total until card is revealed
+    dealerHoleCard = d2; 
+    applyCountForCard(d1);
+
     updateTotal(dealer, dealer_cards, false);
 
     inRound = true;
@@ -110,7 +142,6 @@ function dealing() {
         renderBet();
     }
 
-    // check for initial bjack
     const pTotal = handTotal(player_cards);
     const dTotal = handTotal(dealer_cards);
     if (pTotal === 21 || dTotal === 21) {
@@ -120,7 +151,7 @@ function dealing() {
 }
 
 function handTotal(cards) {
-    // Count J/Q/K as 10, A as 11 then reduce by 10 while busting and aces remain.
+
     let sum = 0;
     let aces = 0;
     for (const c of cards) {
@@ -165,6 +196,11 @@ function revealDealerHole() {
         delete dealerHoleEl.dataset.hidden;
     }
 
+    if (!dealerHoleCounted && dealerHoleCard) {
+        applyCountForCard(dealerHoleCard);
+        dealerHoleCounted = true;
+    }
+
     updateTotal(dealer, dealer_cards, true);
 }
 
@@ -173,6 +209,7 @@ function playerHit() {
     const card = deck.pop();
     player_cards.push(card);
     player.appendChild(displayCard(card));
+    applyCountForCard(card);
 
     updateTotal(player, player_cards, true);
     const total = handTotal(player_cards);
@@ -190,6 +227,7 @@ function dealerPlay() {
         const c = deck.pop();
         dealer_cards.push(c);
         dealer.appendChild(displayCard(c));
+    applyCountForCard(c);
 
         updateTotal(dealer, dealer_cards, true);
     }
@@ -240,6 +278,7 @@ function updateButtons() {
     hitBtn.disabled = !inRound;
     standBtn.disabled = !inRound;
     newBtn.disabled = inRound;
+    if (setBankrollBtn) setBankrollBtn.disabled = inRound;
 
     const disableBetting = inRound;
     for (const btn of [betBtnOne, betBtnTwo, betBtnThree, betBtnFour, betClearBtn]) {
@@ -288,6 +327,11 @@ document.addEventListener("DOMContentLoaded", () => {
     betBtnFour = document.getElementById("bet-btn-4");
     betClearBtn = document.getElementById("bet-clear");
 
+    countValueEl = document.getElementById('count-value');
+    toggleCountBtn = document.getElementById('toggle-count-btn');
+    bankrollInput = document.getElementById('bankroll-input');
+    setBankrollBtn = document.getElementById('set-bankroll-btn');
+
 
     if (!dealBtn || !hitBtn || !standBtn || !newBtn || !dealer || !player || !statusEl) {
         console.error("Missing required elements");
@@ -297,18 +341,47 @@ document.addEventListener("DOMContentLoaded", () => {
     makeDeck();
     shuffleDeck(deck);
     updateButtons();
-    renderBet(); // initialize bet display
+    renderBet(); 
+    runningCount = 0; 
+    updateCountUI();
+
+    if (bankrollInput) {
+        const initial = parseInt(bankrollInput.value, 10);
+        if (!Number.isNaN(initial) && initial >= 0) {
+            amtMoney = initial;
+            betSize = 0;
+            renderBet();
+        }
+    }
 
     dealBtn.addEventListener("click", () => dealing());
     hitBtn.addEventListener("click", () => playerHit());
     standBtn.addEventListener("click", () => { dealerPlay(); endRound(compareTotals()); });
-    // IMPORTANT: pass a callback, don't call addBet immediately
+
     if (betBtnOne) betBtnOne.addEventListener("click", () => addBet(10));
     if (betBtnTwo) betBtnTwo.addEventListener("click", () => addBet(25));
     if (betBtnThree) betBtnThree.addEventListener("click", () => addBet(50));
     if (betBtnFour) betBtnFour.addEventListener("click", () => addBet(100));
     if (betClearBtn) betClearBtn.addEventListener("click", () => { betSize = 0; renderBet(); });
 
+    if (toggleCountBtn) {
+        toggleCountBtn.addEventListener('click', () => {
+            countVisible = !countVisible;
+            updateCountUI();
+        });
+    }
+
+    if (setBankrollBtn && bankrollInput) {
+        setBankrollBtn.addEventListener('click', () => {
+            if (inRound) return; 
+            const val = parseInt(bankrollInput.value, 10);
+            if (!Number.isNaN(val) && val >= 0) {
+                amtMoney = val;
+                betSize = Math.min(betSize, amtMoney);
+                renderBet();
+            }
+        });
+    }
 
     newBtn.addEventListener("click", () => { inRound = false; statusEl.textContent = ''; dealing(); });
 });
