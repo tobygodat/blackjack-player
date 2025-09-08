@@ -126,4 +126,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-weight: 700;
 }
 
+.session-actions {
+  display: flex;
+  gap: 8px;
+}
+
 

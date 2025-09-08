@@ -29,6 +29,10 @@ let bankrollInput = null;
 let setBankrollBtn = null;
 let dealerHoleCard = null;
 let dealerHoleCounted = false;
+let endSessionBtn = null;
+let resetSessionBtn = null;
+let startingBankroll = 500;
+let hasSubmitted = false;
 
 function hiLoValue(card) {
     if (!card) return 0;
@@ -213,10 +217,15 @@ function playerHit() {
 
     updateTotal(player, player_cards, true);
     const total = handTotal(player_cards);
+    
     if (total > 21) {
         revealDealerHole();
         winner = "dealer"; 
         endRound('Player busts. Dealer wins.');
+        if (betSize >= amtMoney) {
+        betSize = amtMoney;
+        renderBet();
+    }
     }
 }
 
@@ -262,15 +271,21 @@ function endRound(message) {
     updateTotal(dealer, dealer_cards, true);
 
     if (winner === "player") {
-        amtMoney += betSize;
+        if (player_cards.length === 2 && handTotal(player_cards) === 21) {
+            amtMoney += Math.floor(betSize * 1.5);
+        } else {
+            amtMoney += betSize;
+        }
     } else if (winner === "dealer") {
         amtMoney -= betSize;
-    } else {
-        amtMoney = amtMoney;
     }
 
     renderBet();
     updateButtons();
+
+    if (amtMoney <= 0) {
+        statusEl.textContent = "Game Over! You're out of money.";
+    }
 }
 
 function updateButtons() {  
@@ -331,6 +346,8 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleCountBtn = document.getElementById('toggle-count-btn');
     bankrollInput = document.getElementById('bankroll-input');
     setBankrollBtn = document.getElementById('set-bankroll-btn');
+    endSessionBtn = document.getElementById('end-session-btn');
+    resetSessionBtn = document.getElementById('reset-session-btn');
 
 
     if (!dealBtn || !hitBtn || !standBtn || !newBtn || !dealer || !player || !statusEl) {
@@ -349,6 +366,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const initial = parseInt(bankrollInput.value, 10);
         if (!Number.isNaN(initial) && initial >= 0) {
             amtMoney = initial;
+            startingBankroll = initial;
+            hasSubmitted = false;
             betSize = 0;
             renderBet();
         }
@@ -377,11 +396,105 @@ document.addEventListener("DOMContentLoaded", () => {
             const val = parseInt(bankrollInput.value, 10);
             if (!Number.isNaN(val) && val >= 0) {
                 amtMoney = val;
+                startingBankroll = val;
+                hasSubmitted = false;
                 betSize = Math.min(betSize, amtMoney);
                 renderBet();
             }
         });
     }
 
+    if (endSessionBtn) {
+        endSessionBtn.addEventListener('click', async () => {
+            if (hasSubmitted) return;
+            if (inRound) {
+                dealerPlay();
+                endRound(compareTotals());
+            }
+            try {
+                await submitScore(amtMoney);
+                hasSubmitted = true;
+                statusEl.textContent = `Session ended. Final bankroll submitted: $${amtMoney}`;
+            } catch (e) {
+                console.error('Submit failed', e);
+            }
+        });
+    }
+
+    if (resetSessionBtn) {
+        resetSessionBtn.addEventListener('click', () => {
+            inRound = false;
+            winner = null;
+            player_cards = [];
+            dealer_cards = [];
+            amtMoney = startingBankroll;
+            betSize = 0;
+            statusEl.textContent = 'Session reset.';
+            
+            makeDeck();
+            shuffleDeck(deck);
+            runningCount = 0;
+            updateCountUI();
+
+            dealer.innerHTML = '';
+            player.innerHTML = '';
+            renderBet();
+            updateButtons();
+        });
+    }
+
     newBtn.addEventListener("click", () => { inRound = false; statusEl.textContent = ''; dealing(); });
+    getAndDisplayLeaderboard();
 });
+
+
+const API_URL = 'http://localhost:8080';
+
+async function getAndDisplayLeaderboard() {
+  try {
+    const response = await fetch(`${API_URL}/leaderboard`);
+    const leaderboard = await response.json();
+
+    const leaderboardListEl = document.getElementById('leaderboard-list');
+    if (!leaderboardListEl) return;
+
+    leaderboardListEl.innerHTML = '';
+
+    if (leaderboard.length === 0) {
+        leaderboardListEl.textContent = 'No scores yet. Be the first!';
+        return;
+    }
+
+    const ol = document.createElement('ol');
+    leaderboard.forEach(entry => {
+        const li = document.createElement('li');
+        li.textContent = `${entry.name}: $${entry.score}`;
+        ol.appendChild(li);
+    });
+    leaderboardListEl.appendChild(ol);
+
+  } catch (error) {
+    console.error("Failed to fetch leaderboard:", error);
+    const leaderboardListEl = document.getElementById('leaderboard-list');
+    if(leaderboardListEl) leaderboardListEl.textContent = "Could not load leaderboard.";
+  }
+}
+
+async function submitScore(finalBankroll) {
+  try {
+    const playerName = prompt("Game over! Enter your name for the leaderboard:");
+    if (!playerName) return;
+
+    await fetch(`${API_URL}/leaderboard`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: playerName, score: finalBankroll }),
+    });
+
+    getAndDisplayLeaderboard();
+  } catch (error) {
+    console.error("Failed to submit score:", error);
+  }
+}
